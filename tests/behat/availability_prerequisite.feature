@@ -1,5 +1,5 @@
 @availability @availability_prerequisite
-Feature: Restrict activity access by course completion
+Feature: Restrict activity access by prerequisite course completion
   As a teacher
   I need to restrict an activity in Course B so it requires Course A to be complete
   So that students follow the intended learning path
@@ -24,25 +24,25 @@ Feature: Restrict activity access by course completion
       | page     | Restricted Page | T2     | 1       |
 
   @javascript
-  Scenario: Teacher can see the course completion condition in the restriction picker
+  Scenario: Teacher can see the prerequisite course condition in the restriction picker
     Given I am on the "Main Course T2" course page logged in as teacher1
     And I turn editing mode on
     And I open "Restricted Page" actions menu
     And I click on "Edit settings" "link" in the "Restricted Page" activity
     And I expand all fieldsets
     And I click on "Add restriction..." "button"
-    Then I should see "Course completion" in the "Add restriction..." "dialogue"
+    Then I should see "Prerequisite course" in the "Add restriction..." "dialogue"
 
   @javascript
-  Scenario: Course completion condition is added to the activity form
+  Scenario: Prerequisite course condition is added to the activity form
     Given I am on the "Main Course T2" course page logged in as teacher1
     And I turn editing mode on
     And I open "Restricted Page" actions menu
     And I click on "Edit settings" "link" in the "Restricted Page" activity
     And I expand all fieldsets
     And I click on "Add restriction..." "button"
-    When I click on "Course completion" "button" in the "Add restriction..." "dialogue"
-    Then I should see "Course completion" in the ".availability-item" "css_element"
+    When I click on "Prerequisite course" "button" in the "Add restriction..." "dialogue"
+    Then I should see "Prerequisite course" in the ".availability-item" "css_element"
 
   @javascript
   Scenario: Restriction message is shown to students when prerequisite is not complete
@@ -52,7 +52,7 @@ Feature: Restrict activity access by course completion
     And I click on "Edit settings" "link" in the "Restricted Page" activity
     And I expand all fieldsets
     And I click on "Add restriction..." "button"
-    And I click on "Course completion" "button" in the "Add restriction..." "dialogue"
+    And I click on "Prerequisite course" "button" in the "Add restriction..." "dialogue"
     And I set the field "coursesearch" to "Prerequisite T1"
     And I click on "Prerequisite T1" "text" in the ".acc-results" "css_element"
     And I press "Save and return to course"
