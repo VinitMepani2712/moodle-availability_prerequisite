@@ -1,0 +1,10 @@
+{
+  "moodle-availability_prerequisite-form": {
+    "requires": [
+        "base",
+        "node",
+        "event",
+        "moodle-core_availability-form"
+    ]
+  }
+}

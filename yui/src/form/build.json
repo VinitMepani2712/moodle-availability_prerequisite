@@ -1,0 +1,10 @@
+{
+  "name": "moodle-availability_prerequisite-form",
+  "builds": {
+    "moodle-availability_prerequisite-form": {
+      "jsfiles": [
+        "form.js"
+      ]
+    }
+  }
+}
