@@ -1,4 +1,4 @@
-@availability @availability_coursecompleted
+@availability @availability_prerequisite
 Feature: Restrict activity access by course completion
   As a teacher
   I need to restrict an activity in Course B so it requires Course A to be complete
