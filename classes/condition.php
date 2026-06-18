@@ -230,8 +230,11 @@ class condition extends \core_availability\condition {
             if (!$not && $this->expectedcompletion === self::COMPLETION_COMPLETE) {
                 $pct = $this->get_completion_percentage((int)$USER->id);
                 if ($pct !== null && $pct < 100) {
-                    $progressstr = get_string('progress_percent', 'availability_prerequisite',
-                        $pct);
+                    $progressstr = get_string(
+                        'progress_percent',
+                        'availability_prerequisite',
+                        $pct
+                    );
                     $displayname .= ' ' . \html_writer::span(
                         $progressstr,
                         'availability-prerequisite-progress'

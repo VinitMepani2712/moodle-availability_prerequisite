@@ -46,18 +46,19 @@ $context = context_course::instance($courseid);
 require_login($course);
 require_capability('availability/prerequisite:bulkmanage', $context);
 
-$PAGE->set_url(new moodle_url('/availability/condition/prerequisite/bulkset/bulkset.php',
-    ['courseid' => $courseid]));
+$PAGE->set_url(new moodle_url(
+    '/availability/condition/prerequisite/bulkset/bulkset.php',
+    ['courseid' => $courseid]
+));
 $PAGE->set_context($context);
 $PAGE->set_course($course);
 $PAGE->set_title(get_string('bulkset_title', 'availability_prerequisite'));
 $PAGE->set_heading($course->fullname);
 $PAGE->set_pagelayout('incourse');
 
-// ── Handle form submission ────────────────────────────────────────────────────
+// Handle form submission.
 
 if ($confirm && ($prereqid > 0 || $clear)) {
-
     require_sesskey();
 
     // Build the new availability JSON for this condition (or null to clear).
@@ -91,19 +92,24 @@ if ($confirm && ($prereqid > 0 || $clear)) {
 
     $successmsg = $clear
         ? get_string('bulkset_cleared', 'availability_prerequisite', $count)
-        : get_string('bulkset_applied', 'availability_prerequisite',
-            (object)['count' => $count, 'course' => format_string($prereqcourse->fullname)]);
+        : get_string(
+            'bulkset_applied',
+            'availability_prerequisite',
+            (object)['count' => $count, 'course' => format_string($prereqcourse->fullname)]
+        );
 
     redirect(
-        new moodle_url('/availability/condition/prerequisite/bulkset/bulkset.php',
-            ['courseid' => $courseid]),
+        new moodle_url(
+            '/availability/condition/prerequisite/bulkset/bulkset.php',
+            ['courseid' => $courseid]
+        ),
         $successmsg,
         null,
         \core\output\notification::NOTIFY_SUCCESS
     );
 }
 
-// ── Build course list for select ─────────────────────────────────────────────
+// Build course list for select.
 
 // Cap the number of courses loaded to avoid memory issues on large sites.
 $maxcourses   = \availability_prerequisite\frontend::MAX_COURSES;
@@ -127,7 +133,7 @@ foreach ($othercourses as $c) {
     $courseoptions[$c->id] = format_string($c->fullname);
 }
 
-// ── Render page ───────────────────────────────────────────────────────────────
+// Render page.
 
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('bulkset_title', 'availability_prerequisite'));
@@ -137,8 +143,11 @@ echo html_writer::tag('p', get_string('bulkset_desc', 'availability_prerequisite
 // Warn if not all courses are shown due to the safety cap.
 if ($totalcourses > $maxcourses) {
     echo $OUTPUT->notification(
-        get_string('bulkset_capped', 'availability_prerequisite',
-            (object)['shown' => $maxcourses, 'total' => $totalcourses]),
+        get_string(
+            'bulkset_capped',
+            'availability_prerequisite',
+            (object)['shown' => $maxcourses, 'total' => $totalcourses]
+        ),
         \core\output\notification::NOTIFY_INFO
     );
 }
@@ -150,19 +159,25 @@ echo html_writer::start_tag('form', [
     'action' => $formurl->out(false),
     'class'  => 'mform',
 ]);
-echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'courseid',  'value' => $courseid]);
-echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'confirm',   'value' => 1]);
-echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey',   'value' => sesskey()]);
+echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'courseid', 'value' => $courseid]);
+echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'confirm', 'value' => 1]);
+echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
 
 // Course select.
 echo html_writer::start_div('form-group row');
-echo html_writer::tag('label',
+echo html_writer::tag(
+    'label',
     get_string('bulkset_selectcourse', 'availability_prerequisite'),
     ['class' => 'col-md-4 col-form-label', 'for' => 'prereqid']
 );
 echo html_writer::start_div('col-md-6');
-echo html_writer::select($courseoptions, 'prereqid', $prereqid, false,
-    ['id' => 'prereqid', 'class' => 'custom-select form-control']);
+echo html_writer::select(
+    $courseoptions,
+    'prereqid',
+    $prereqid,
+    false,
+    ['id' => 'prereqid', 'class' => 'custom-select form-control']
+);
 echo html_writer::end_div();
 echo html_writer::end_div();
 
@@ -182,7 +197,7 @@ echo html_writer::end_tag('form');
 // Clear all section.
 echo html_writer::tag('hr', '');
 echo html_writer::tag('h4', get_string('bulkset_clearheading', 'availability_prerequisite'));
-echo html_writer::tag('p',  get_string('bulkset_cleardesc',    'availability_prerequisite'));
+echo html_writer::tag('p', get_string('bulkset_cleardesc', 'availability_prerequisite'));
 
 $clearurl = new moodle_url('/availability/condition/prerequisite/bulkset/bulkset.php', [
     'courseid' => $courseid,
@@ -193,8 +208,10 @@ $clearurl = new moodle_url('/availability/condition/prerequisite/bulkset/bulkset
 echo $OUTPUT->confirm(
     get_string('bulkset_clearconfirm', 'availability_prerequisite'),
     $clearurl,
-    new moodle_url('/availability/condition/prerequisite/bulkset/bulkset.php',
-        ['courseid' => $courseid])
+    new moodle_url(
+        '/availability/condition/prerequisite/bulkset/bulkset.php',
+        ['courseid' => $courseid]
+    )
 );
 
 echo $OUTPUT->footer();

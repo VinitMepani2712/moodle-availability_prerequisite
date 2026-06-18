@@ -18,7 +18,7 @@
  * PHPUnit tests for availability_prerequisite condition.
  *
  * Run with:
- *   vendor/bin/phpunit availability/condition/coursecompleted/tests/condition_test.php
+ *   vendor/bin/phpunit availability/condition/prerequisite/tests/condition_test.php
  *
  * @package   availability_prerequisite
  * @copyright 2026 Vinit Mepani <vinitmepani07@email.com>
@@ -94,7 +94,7 @@ final class condition_test extends advanced_testcase {
         $cond  = new condition((object)['course' => 7, 'e' => 1]);
         $saved = $cond->save();
 
-        $this->assertEquals('coursecompleted', $saved->type);
+        $this->assertEquals('prerequisite', $saved->type);
         $this->assertEquals(7, $saved->course);
         $this->assertEquals(1, $saved->e);
     }
@@ -224,7 +224,7 @@ final class condition_test extends advanced_testcase {
     public function test_get_json(): void {
         $json = condition::get_json(42, condition::COMPLETION_COMPLETE);
 
-        $this->assertEquals('coursecompleted', $json->type);
+        $this->assertEquals('prerequisite', $json->type);
         $this->assertEquals(42, $json->course);
         $this->assertEquals(1, $json->e);
     }
