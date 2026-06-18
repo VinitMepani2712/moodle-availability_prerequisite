@@ -63,21 +63,27 @@ class frontend extends \core_availability\frontend {
             'visit_course',
             'noresults',
             'toomany',
+            'searching',
+            'searcherror',
         ];
     }
 
     /**
      * Returns init parameters passed to the JavaScript module.
      *
-     * The course list is capped at self::MAX_COURSES to avoid loading and
-     * rendering the entire course table on large sites. When more courses
-     * exist than the cap, a "capped" flag is passed so the widget can prompt
-     * the user to refine their search.
+     * Only an initial page of courses (capped at self::MAX_COURSES) is shipped
+     * to the browser for the empty-search display; the widget queries the
+     * {@see \availability_prerequisite\external\search_courses} web service as
+     * the user types, so any course is findable regardless of the cap. When
+     * more courses exist than the cap, a "capped" flag is passed so the widget
+     * can prompt the user to search. Any course already selected in this item's
+     * restrictions is added explicitly so its name displays even when it falls
+     * outside the initial page.
      *
      * @param \stdClass          $course  Current course.
      * @param \cm_info|null      $cm      Current module (null if editing a section).
      * @param \section_info|null $section Current section (null if editing a module).
-     * @return array Two-element array: [course list, capped flag].
+     * @return array Three-element array: [current course id, course list, capped flag].
      */
     protected function get_javascript_init_params(
         $course,
@@ -113,6 +119,21 @@ class frontend extends \core_availability\frontend {
             self::MAX_COURSES
         );
 
+        // Make sure any course already chosen in this item's restrictions is
+        // present, even if it sorts beyond the initial page, so its name shows
+        // when the editor reopens. $courses is keyed by id, so the union is
+        // naturally de-duplicated.
+        $selectedids = $this->get_selected_courseids($cm, $section);
+        unset($selectedids[(int)$course->id]);
+        foreach (array_keys($courses) as $loadedid) {
+            unset($selectedids[$loadedid]);
+        }
+        if (!empty($selectedids)) {
+            [$insql, $inparams] = $DB->get_in_or_equal(array_keys($selectedids), SQL_PARAMS_NAMED, 'selid');
+            $extra = $DB->get_records_select('course', "id $insql", $inparams, 'fullname ASC', 'id, fullname');
+            $courses += $extra;
+        }
+
         $courselist = [];
         foreach ($courses as $c) {
             $courseurl = new \moodle_url('/course/view.php', ['id' => $c->id]);
@@ -127,9 +148,64 @@ class frontend extends \core_availability\frontend {
         $capped = ($total > self::MAX_COURSES);
 
         $this->cachekey    = $cachekey;
-        $this->cacheparams = [$courselist, $capped];
+        $this->cacheparams = [(int)$course->id, $courselist, $capped];
 
         return $this->cacheparams;
+    }
+
+    /**
+     * Collects the course ids referenced by prerequisite conditions already
+     * stored on the module or section being edited.
+     *
+     * @param \cm_info|null      $cm      Current module.
+     * @param \section_info|null $section Current section.
+     * @return array Set of course ids, keyed by id (value == key).
+     */
+    protected function get_selected_courseids(?\cm_info $cm, ?\section_info $section): array {
+        $availability = null;
+        if ($cm !== null) {
+            $availability = $cm->availability;
+        } else if ($section !== null) {
+            $availability = $section->availability;
+        }
+
+        $ids = [];
+        if (empty($availability)) {
+            return $ids;
+        }
+
+        $decoded = json_decode($availability);
+        if ($decoded === null) {
+            return $ids;
+        }
+
+        $this->collect_prerequisite_courseids($decoded, $ids);
+        return $ids;
+    }
+
+    /**
+     * Recursively walks an availability tree, collecting the course ids used by
+     * prerequisite conditions.
+     *
+     * @param mixed $node Decoded availability node (object, array or scalar).
+     * @param array $ids  Accumulator of course ids, keyed by id, passed by reference.
+     * @return void
+     */
+    protected function collect_prerequisite_courseids($node, array &$ids): void {
+        if (is_object($node)) {
+            $node = (array)$node;
+        }
+        if (!is_array($node)) {
+            return;
+        }
+        if (isset($node['type'], $node['course']) && $node['type'] === 'prerequisite') {
+            $ids[(int)$node['course']] = (int)$node['course'];
+        }
+        if (isset($node['c']) && is_array($node['c'])) {
+            foreach ($node['c'] as $child) {
+                $this->collect_prerequisite_courseids($child, $ids);
+            }
+        }
     }
 
     /**
@@ -154,6 +230,6 @@ class frontend extends \core_availability\frontend {
         }
 
         $params = $this->get_javascript_init_params($course, $cm, $section);
-        return !empty($params[0]);
+        return !empty($params[1]);
     }
 }

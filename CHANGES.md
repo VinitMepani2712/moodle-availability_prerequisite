@@ -1,6 +1,27 @@
 
 # Changelog
 
+## 1.3.0 - 2026-06-18
+
+### Fixed
+
+* Course picker search could not find courses that sorted alphabetically
+  beyond the 250-course load cap on large sites (e.g. a course named "T1"
+  showed "No courses match your search" even though it existed). The search
+  was performed entirely in the browser over the pre-loaded, truncated list,
+  so courses that were never sent could never be found
+
+### Changed
+
+* The prerequisite course picker now searches **server-side** as you type via
+  a new `availability_prerequisite_search_courses` web service, so any course
+  is findable regardless of how many courses the site has. Only an initial
+  page of courses is shipped to the browser for the empty-search display;
+  searching queries the database directly
+* A prerequisite course already saved on the activity/section is now always
+  sent to the editor by name, so it displays correctly when the restriction
+  is reopened even if it falls outside the initial page
+
 ## 1.2.0 - 2026-06-17
 
 ### Added

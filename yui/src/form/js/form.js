@@ -7,6 +7,11 @@
  *  - Per-node event listeners, no shared addedEvents flags.
  *  - Fully accessible: keyboard navigation (↑↓ Enter Esc), ARIA attributes.
  *
+ * Searching is performed server-side (via the
+ * availability_prerequisite_search_courses web service) so any course is
+ * findable regardless of how many courses the site has. Only an initial page
+ * of courses is shipped for the empty-search display.
+ *
  * @module moodle-availability_prerequisite-form
  * @copyright 2026 Vinit Mepani <vinitmepani07@email.com>
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
@@ -15,9 +20,10 @@ M.availability_prerequisite = M.availability_prerequisite || {};
 M.availability_prerequisite.form = Y.Object(M.core_availability.plugin);
 M.availability_prerequisite.form.courses = [];
 
-M.availability_prerequisite.form.initInner = function(courses, capped) {
+M.availability_prerequisite.form.initInner = function(currentcourseid, courses, capped) {
+    this.currentcourseid = parseInt(currentcourseid, 10) || 0;
+    this.courses = courses || [];
     this.capped = capped || false;
-    this.courses = courses;
 };
 
 M.availability_prerequisite.form.getNode = function(json) {
@@ -26,6 +32,8 @@ M.availability_prerequisite.form.getNode = function(json) {
     var selectedId   = (json && json.course) ? parseInt(json.course, 10) : 0;
     var selectedName = '';
     var focusedIndex = -1;
+    var searchTimer  = null;
+    var searchSeq    = 0;
 
     if (selectedId) {
         for (var k = 0; k < self.courses.length; k++) {
@@ -37,14 +45,16 @@ M.availability_prerequisite.form.getNode = function(json) {
     }
 
     // ── Lang strings ────────────────────────────────────────────────────────
-    var strSearch     = M.util.get_string('searchcourse',     'availability_prerequisite');
-    var strLabelCrs   = M.util.get_string('label_course',     'availability_prerequisite');
-    var strLabelComp  = M.util.get_string('label_completion',  'availability_prerequisite');
-    var strNoResults  = M.util.get_string('noresults',         'availability_prerequisite');
-    var strVisit      = M.util.get_string('visit_course',      'availability_prerequisite');
-    var strComplete   = M.util.get_string('option_complete',   'availability_prerequisite');
-    var strIncomplete = M.util.get_string('option_incomplete', 'availability_prerequisite');
-    var strError      = M.util.get_string('error_selectcourse','availability_prerequisite');
+    var strSearch      = M.util.get_string('searchcourse',      'availability_prerequisite');
+    var strLabelCrs    = M.util.get_string('label_course',      'availability_prerequisite');
+    var strLabelComp   = M.util.get_string('label_completion',  'availability_prerequisite');
+    var strNoResults   = M.util.get_string('noresults',         'availability_prerequisite');
+    var strTooMany     = M.util.get_string('toomany',           'availability_prerequisite');
+    var strVisit       = M.util.get_string('visit_course',      'availability_prerequisite');
+    var strComplete    = M.util.get_string('option_complete',   'availability_prerequisite');
+    var strIncomplete  = M.util.get_string('option_incomplete', 'availability_prerequisite');
+    var strSearching   = M.util.get_string('searching',         'availability_prerequisite');
+    var strSearchError = M.util.get_string('searcherror',       'availability_prerequisite');
 
     // SVG magnifier icon (no emoji, no font icon dependency — works everywhere).
     var svgIcon =
@@ -98,20 +108,22 @@ M.availability_prerequisite.form.getNode = function(json) {
         node.one('select[name=e]').set('value', '' + json.e);
     }
 
-    // ── renderList: rebuild the results list ─────────────────────────────────
-    function renderList(query) {
-        var list    = node.one('[name=courselist]');
-        var trimmed = (query || '').trim().toLowerCase();
-        var html    = '';
-        var shown   = 0;
-        var total   = 0;
+    var list        = node.one('[name=courselist]');
+    var searchInput = node.one('input[name=coursesearch]');
 
-        for (var i = 0; i < self.courses.length; i++) {
-            var c = self.courses[i];
+    // ── buildAndSet: render a given set of courses into the results list ──────
+    function buildAndSet(courses, query, capped) {
+        var trimmed = (query || '').trim().toLowerCase();
+        var markup  = '';
+        var shown   = 0;
+
+        for (var i = 0; i < courses.length; i++) {
+            var c = courses[i];
+            // Local lists may still need filtering; server results arrive
+            // already filtered but re-filtering is harmless.
             if (trimmed && c.name.toLowerCase().indexOf(trimmed) === -1) {
                 continue;
             }
-            total++;
             if (shown >= 50) {
                 continue;
             }
@@ -136,7 +148,7 @@ M.availability_prerequisite.form.getNode = function(json) {
             var rowClasses = 'acc-row' +
                 (isSelected ? ' acc-selected' : '');
 
-            html +=
+            markup +=
                 '<span class="' + rowClasses + '" ' +
                       'data-id="'   + c.id + '" ' +
                       'data-name="' + c.name.replace(/"/g, '&quot;') + '" ' +
@@ -145,7 +157,7 @@ M.availability_prerequisite.form.getNode = function(json) {
                       'aria-selected="' + (isSelected ? 'true' : 'false') + '">' +
 
                     '<span class="acc-row-name">' +
-                        (isSelected ? '<span class="acc-check" aria-hidden="true">\u2713</span>' : '') +
+                        (isSelected ? '<span class="acc-check" aria-hidden="true">✓</span>' : '') +
                         display +
                     '</span>' +
 
@@ -159,26 +171,88 @@ M.availability_prerequisite.form.getNode = function(json) {
         }
 
         if (shown === 0) {
-            html = '<span class="acc-message">' + strNoResults + '</span>';
+            markup = '<span class="acc-message">' + strNoResults + '</span>';
         }
 
-        // When the server capped the course list, tell the user to refine.
-        if (self.capped) {
-            html += '<span class="acc-overflow">' +
-                        M.util.get_string('toomany', 'availability_prerequisite') +
-                    '</span>';
+        // When the result set was truncated server-side, tell the user to search.
+        if (capped) {
+            markup += '<span class="acc-overflow">' + strTooMany + '</span>';
         }
 
-        list.setHTML(html);
+        list.setHTML(markup);
         focusedIndex = -1;
     }
 
-    // Initial render.
-    renderList('');
+    // ── doServerSearch: query the web service for matching courses ────────────
+    function doServerSearch(query) {
+        var seq = ++searchSeq;
+        list.setHTML('<span class="acc-message">' + strSearching + '</span>');
+        require(['core/ajax'], function(ajax) {
+            ajax.call([{
+                methodname: 'availability_prerequisite_search_courses',
+                args: {query: query, currentcourseid: self.currentcourseid}
+            }])[0].done(function(response) {
+                // Ignore results from a search the user has already moved past.
+                if (seq !== searchSeq) {
+                    return;
+                }
+                buildAndSet(response.courses, query, response.capped);
+            }).fail(function() {
+                if (seq !== searchSeq) {
+                    return;
+                }
+                list.setHTML('<span class="acc-message">' + strSearchError + '</span>');
+            });
+        });
+    }
+
+    // ── renderList: empty query → local list, otherwise debounced server search.
+    function renderList(query) {
+        var trimmed = (query || '').trim();
+        if (searchTimer) {
+            clearTimeout(searchTimer);
+            searchTimer = null;
+        }
+        if (trimmed === '') {
+            searchSeq++; // Discard any in-flight server response.
+            buildAndSet(self.courses, '', self.capped);
+            return;
+        }
+        searchTimer = setTimeout(function() {
+            doServerSearch(trimmed);
+        }, 250);
+    }
+
+    // Remember a server-supplied course so later local lookups (selected name,
+    // Escape-to-restore) can resolve it without another round trip.
+    function rememberCourse(id, name, url) {
+        for (var i = 0; i < self.courses.length; i++) {
+            if (self.courses[i].id === id) {
+                return;
+            }
+        }
+        self.courses.push({id: id, name: name, url: url});
+    }
+
+    // Commit a chosen row to the hidden field and refresh the display.
+    function selectCourse(id, name, url) {
+        selectedId = id;
+        rememberCourse(id, name, url);
+        searchInput.set('value', name);
+        node.one('input[name=course]').set('value', id);
+        if (searchTimer) {
+            clearTimeout(searchTimer);
+            searchTimer = null;
+        }
+        searchSeq++;
+        buildAndSet(self.courses, name, self.capped);
+        M.core_availability.form.update();
+    }
+
+    // Initial render (local list).
+    buildAndSet(self.courses, '', self.capped);
 
     // ── Live search ──────────────────────────────────────────────────────────
-    var searchInput = node.one('input[name=coursesearch]');
-
     // keyup catches held-down keys and deletion; input catches paste/cut.
     searchInput.on('keyup', function(e) {
         // Don't re-render for navigation keys — handled in keydown.
@@ -193,22 +267,22 @@ M.availability_prerequisite.form.getNode = function(json) {
     });
 
     // ── Row selection ────────────────────────────────────────────────────────
-    node.one('[name=courselist]').delegate('click', function(e) {
+    list.delegate('click', function(e) {
         // Ignore clicks on the "Open course" link itself.
         if (e.target.get('tagName').toLowerCase() === 'a' || e.target.ancestor('a')) {
             return;
         }
-        var row    = e.currentTarget;
-        selectedId = parseInt(row.getData('id'), 10);
-        searchInput.set('value', row.getData('name'));
-        node.one('input[name=course]').set('value', selectedId);
-        renderList(searchInput.get('value'));
-        M.core_availability.form.update();
+        var row = e.currentTarget;
+        selectCourse(
+            parseInt(row.getData('id'), 10),
+            row.getData('name'),
+            row.getData('url')
+        );
     }, '.acc-row');
 
     // ── Keyboard navigation ──────────────────────────────────────────────────
     searchInput.on('keydown', function(e) {
-        var rows  = node.one('[name=courselist]').all('.acc-row');
+        var rows  = list.all('.acc-row');
         var count = rows.size();
 
         function applyFocus(idx) {
@@ -236,24 +310,31 @@ M.availability_prerequisite.form.getNode = function(json) {
             var idx    = (focusedIndex >= 0) ? focusedIndex : 0;
             var picked = rows.item(idx);
             if (picked) {
-                selectedId = parseInt(picked.getData('id'), 10);
-                searchInput.set('value', picked.getData('name'));
-                node.one('input[name=course]').set('value', selectedId);
-                renderList('');
-                M.core_availability.form.update();
+                selectCourse(
+                    parseInt(picked.getData('id'), 10),
+                    picked.getData('name'),
+                    picked.getData('url')
+                );
             }
 
         } else if (e.keyCode === 27) { // Escape — restore last confirmed name
             var currentId = parseInt(node.one('input[name=course]').get('value'), 10);
+            var restored  = '';
             if (currentId) {
-                for (var k = 0; k < self.courses.length; k++) {
-                    if (self.courses[k].id === currentId) {
-                        searchInput.set('value', self.courses[k].name);
+                for (var k2 = 0; k2 < self.courses.length; k2++) {
+                    if (self.courses[k2].id === currentId) {
+                        restored = self.courses[k2].name;
                         break;
                     }
                 }
+                searchInput.set('value', restored);
             }
-            renderList('');
+            if (searchTimer) {
+                clearTimeout(searchTimer);
+                searchTimer = null;
+            }
+            searchSeq++;
+            buildAndSet(self.courses, restored, self.capped);
         }
     });
 
