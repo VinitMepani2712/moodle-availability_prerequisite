@@ -48,7 +48,6 @@ namespace availability_prerequisite;
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class observer {
-
     /**
      * Fired when a new course module is created.
      *
@@ -113,8 +112,12 @@ class observer {
         ]);
 
         // Apply it to the new activity.
-        $DB->set_field('course_modules', 'availability', $newavailability,
-            ['id' => $newcmid]);
+        $DB->set_field(
+            'course_modules',
+            'availability',
+            $newavailability,
+            ['id' => $newcmid]
+        );
 
         // Rebuild the course cache so it takes effect immediately.
         rebuild_course_cache($courseid, true);

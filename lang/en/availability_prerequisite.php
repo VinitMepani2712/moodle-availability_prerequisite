@@ -23,18 +23,17 @@
  */
 
 // Bulk setter page strings.
-$string['bulkset_apply']         = 'Apply to all activities';
 $string['bulkset_applied']       = 'Prerequisite course "{$a->course}" applied to {$a->count} activities.';
+$string['bulkset_apply']         = 'Apply to all activities';
 $string['bulkset_capped']        = 'Showing {$a->shown} of {$a->total} courses. If you do not see the course you need, it is not listed here due to the large number of courses on this site.';
 $string['bulkset_clearconfirm']  = 'Are you sure you want to remove all prerequisite restrictions from every activity in this course?';
 $string['bulkset_cleardesc']     = 'Remove all prerequisite course restrictions from every activity in this course.';
-$string['bulkset_clearheading']  = 'Clear all prerequisites';
 $string['bulkset_cleared']       = 'Prerequisite restrictions removed from {$a} activities.';
+$string['bulkset_clearheading']  = 'Clear all prerequisites';
 $string['bulkset_desc']          = 'Select a prerequisite course below. The "must be complete" restriction will be applied to every activity in this course at once, saving you from setting it activity by activity.';
 $string['bulkset_selectcourse']  = 'Prerequisite course';
 $string['bulkset_title']         = 'Set prerequisite for all activities';
 
-// Condition editor strings.
 $string['choosecourse']            = 'Choose a course...';
 $string['description']             = 'Prevent access until a student has completed a prerequisite course.';
 $string['error_selectcourse']      = 'You must select a course for the completion condition.';
@@ -56,4 +55,3 @@ $string['searchcourse']            = 'Search courses by name...';
 $string['title']                   = 'Prerequisite course';
 $string['toomany']                 = 'Showing the first matches only. Type to narrow your search.';
 $string['visit_course']            = 'Open course';
-
