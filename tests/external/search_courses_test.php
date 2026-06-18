@@ -26,7 +26,7 @@
 namespace availability_prerequisite\external;
 
 use advanced_testcase;
-use external_api;
+use core_external\external_api;
 
 /**
  * Test class for the search_courses external function.

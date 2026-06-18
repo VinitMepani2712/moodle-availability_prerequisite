@@ -26,14 +26,26 @@ namespace availability_prerequisite\external;
 
 defined('MOODLE_INTERNAL') || die();
 
-use external_api;
-use external_function_parameters;
-use external_value;
-use external_single_structure;
-use external_multiple_structure;
+use core_external\external_api;
+use core_external\external_function_parameters;
+use core_external\external_value;
+use core_external\external_single_structure;
+use core_external\external_multiple_structure;
 
-global $CFG;
-require_once($CFG->libdir . '/externallib.php');
+// Moodle 4.2 moved the external API classes into the core_external namespace,
+// where they are autoloaded. On Moodle 4.1 they are global classes defined in
+// externallib.php, so on that version load them and alias them onto the
+// core_external names used below. This keeps 4.1 working while avoiding any
+// include of externallib.php on 4.2+ (which is disallowed during unit tests).
+if (!class_exists(\core_external\external_api::class)) {
+    global $CFG;
+    require_once($CFG->libdir . '/externallib.php');
+    class_alias(\external_api::class, \core_external\external_api::class);
+    class_alias(\external_function_parameters::class, \core_external\external_function_parameters::class);
+    class_alias(\external_value::class, \core_external\external_value::class);
+    class_alias(\external_single_structure::class, \core_external\external_single_structure::class);
+    class_alias(\external_multiple_structure::class, \core_external\external_multiple_structure::class);
+}
 
 /**
  * Server-side course search backing the availability condition editor widget.
@@ -47,7 +59,6 @@ require_once($CFG->libdir . '/externallib.php');
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class search_courses extends external_api {
-
     /**
      * Describes the parameters accepted by {@see self::execute()}.
      *
