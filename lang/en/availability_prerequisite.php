@@ -56,4 +56,3 @@ $string['searchcourse']            = 'Search courses by name...';
 $string['title']                   = 'Prerequisite course';
 $string['toomany']                 = 'Showing the first matches only. Type to narrow your search.';
 $string['visit_course']            = 'Open course';
-
