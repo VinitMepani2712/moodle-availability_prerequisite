@@ -157,4 +157,3 @@ class frontend extends \core_availability\frontend {
         return !empty($params[0]);
     }
 }
-
