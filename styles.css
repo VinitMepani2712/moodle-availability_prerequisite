@@ -2,7 +2,7 @@
  * Styles for the availability_prerequisite condition editor widget.
  *
  * We use a dedicated CSS file rather than inline styles in the YUI JS,
- * which is the Moodle standard (see availability/condition/*/styles.css).
+ * which is the Moodle standard (see availability/condition/prerequisite/styles.css).
  * All class names are prefixed with .availability_prerequisite to avoid
  * collisions with other plugins or Moodle core.
  *
@@ -11,13 +11,13 @@
  * @license   http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-/* ── Outer wrapper ──────────────────────────────────────────────────────── */
+/*  Outer wrapper  */
 .availability_prerequisite .acc-widget {
     display: block;
     max-width: 580px;
 }
 
-/* ── Section blocks (course picker / completion state) ──────────────────── */
+/*  Section blocks (course picker / completion state)  */
 .availability_prerequisite .acc-section {
     display: block;
     margin-bottom: 12px;
@@ -31,7 +31,7 @@
     color: inherit;
 }
 
-/* ── Search input wrapper ───────────────────────────────────────────────── */
+/*  Search input wrapper  */
 .availability_prerequisite .acc-search-wrap {
     position: relative;
     display: block;
@@ -56,7 +56,7 @@
     border-radius: 4px 4px 0 0;
 }
 
-/* ── Results list ───────────────────────────────────────────────────────── */
+/*  Results list  */
 .availability_prerequisite .acc-results {
     display: block;
     border: 1px solid #ced4da;
@@ -169,8 +169,22 @@
     border-top: 1px solid #e9ecef;
 }
 
-/* ── Completion state select ────────────────────────────────────────────── */
+/*  Completion state select  */
 .availability_prerequisite .acc-completion-select {
     max-width: 280px;
     width: 100%;
+}
+
+/*  Progress percentage shown in restriction message  */
+.availability-prerequisite-progress {
+    display: inline-block;
+    font-size: 0.82rem;
+    color: #6c757d;
+    font-style: italic;
+    margin-left: 4px;
+}
+
+/*  Bulk setter page form  */
+.availability-prerequisite-bulkset .form-group {
+    margin-bottom: 1rem;
 }

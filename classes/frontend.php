@@ -39,6 +39,14 @@ class frontend extends \core_availability\frontend {
     protected $cachekey = '';
 
     /**
+     * @var int Maximum number of courses to load into the picker at once.
+     *          Prevents loading the entire course table on large sites.
+     *          When the cap is hit, the JS widget tells the user to refine
+     *          their search.
+     */
+    const MAX_COURSES = 250;
+
+    /**
      * Returns lang string identifiers to pass to the JavaScript module.
      *
      * @return string[]
@@ -54,16 +62,22 @@ class frontend extends \core_availability\frontend {
             'searchcourse',
             'visit_course',
             'noresults',
+            'toomany',
         ];
     }
 
     /**
      * Returns init parameters passed to the JavaScript module.
      *
+     * The course list is capped at self::MAX_COURSES to avoid loading and
+     * rendering the entire course table on large sites. When more courses
+     * exist than the cap, a "capped" flag is passed so the widget can prompt
+     * the user to refine their search.
+     *
      * @param \stdClass          $course  Current course.
      * @param \cm_info|null      $cm      Current module (null if editing a section).
      * @param \section_info|null $section Current section (null if editing a module).
-     * @return array One-element array containing the course list.
+     * @return array Two-element array: [course list, capped flag].
      */
     protected function get_javascript_init_params(
         $course,
@@ -79,12 +93,24 @@ class frontend extends \core_availability\frontend {
 
         $context = \context_course::instance($course->id);
 
+        // Count how many candidate courses exist (cheap COUNT query).
+        $total = $DB->count_records_select(
+            'course',
+            'category > 0 AND id <> :currentcourse',
+            ['currentcourse' => $course->id]
+        );
+
+        // Load at most MAX_COURSES rows, ordered by name. The final argument
+        // to get_records_select is limitnum, which applies a SQL LIMIT so we
+        // never pull the whole table into memory.
         $courses = $DB->get_records_select(
             'course',
             'category > 0 AND id <> :currentcourse',
             ['currentcourse' => $course->id],
             'fullname ASC',
-            'id, fullname'
+            'id, fullname',
+            0,
+            self::MAX_COURSES
         );
 
         $courselist = [];
@@ -97,8 +123,11 @@ class frontend extends \core_availability\frontend {
             ];
         }
 
+        // True when more courses exist than we loaded — the widget shows a hint.
+        $capped = ($total > self::MAX_COURSES);
+
         $this->cachekey    = $cachekey;
-        $this->cacheparams = [$courselist];
+        $this->cacheparams = [$courselist, $capped];
 
         return $this->cacheparams;
     }

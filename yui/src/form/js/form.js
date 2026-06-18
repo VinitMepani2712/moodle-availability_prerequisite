@@ -15,7 +15,8 @@ M.availability_prerequisite = M.availability_prerequisite || {};
 M.availability_prerequisite.form = Y.Object(M.core_availability.plugin);
 M.availability_prerequisite.form.courses = [];
 
-M.availability_prerequisite.form.initInner = function(courses) {
+M.availability_prerequisite.form.initInner = function(courses, capped) {
+    this.capped = capped || false;
     this.courses = courses;
 };
 
@@ -159,10 +160,12 @@ M.availability_prerequisite.form.getNode = function(json) {
 
         if (shown === 0) {
             html = '<span class="acc-message">' + strNoResults + '</span>';
-        } else if (total > 50) {
+        }
+
+        // When the server capped the course list, tell the user to refine.
+        if (self.capped) {
             html += '<span class="acc-overflow">' +
-                        M.util.get_string('showing50', 'availability_prerequisite') ||
-                        ('Showing 50 of ' + total + ' — type to narrow results') +
+                        M.util.get_string('toomany', 'availability_prerequisite') +
                     '</span>';
         }
 

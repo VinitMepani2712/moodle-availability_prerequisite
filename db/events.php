@@ -15,7 +15,11 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Capability definitions for availability_prerequisite.
+ * Event observers for availability_prerequisite.
+ *
+ * Registers the course_module_created observer so that when a new activity
+ * is added to a course, it automatically inherits the prerequisite restriction
+ * that is already set on other activities in that course.
  *
  * @package   availability_prerequisite
  * @copyright 2026 Vinit Mepani <vinitmepani07@email.com>
@@ -24,18 +28,9 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$capabilities = [
-
-    // Allows a user to apply or clear prerequisite restrictions on ALL
-    // activities in a course at once via the bulk setter page.
-    // Sites can grant this to any custom role (e.g. programme staff)
-    // through standard Moodle role configuration.
-    'availability/prerequisite:bulkmanage' => [
-        'captype'      => 'write',
-        'contextlevel' => CONTEXT_COURSE,
-        'archetypes'   => [
-            'editingteacher' => CAP_ALLOW,
-            'manager'        => CAP_ALLOW,
-        ],
+$observers = [
+    [
+        'eventname' => '\core\event\course_module_created',
+        'callback'  => '\availability_prerequisite\observer::course_module_created',
     ],
 ];

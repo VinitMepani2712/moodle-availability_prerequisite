@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Availability condition: require completion of another course.
+ * Availability condition: require completion of a prerequisite course.
  *
  * @package   availability_prerequisite
  * @copyright 2026 Vinit Mepani <vinitmepani07@email.com>
@@ -25,10 +25,10 @@
 namespace availability_prerequisite;
 
 /**
- * Condition class for course completion availability.
+ * Condition class for prerequisite course availability.
  *
  * Restricts access to activities/sections until a student has
- * completed (or not completed) another course.
+ * completed (or not completed) a prerequisite course.
  *
  * @package   availability_prerequisite
  * @copyright 2026 Vinit Mepani <vinitmepani07@email.com>
@@ -44,8 +44,22 @@ class condition extends \core_availability\condition {
     /** @var int ID of the prerequisite course. */
     protected $courseid;
 
-    /** @var int Expected completion state (COMPLETION_COMPLETE or COMPLETION_INCOMPLETE). */
+    /** @var int Expected completion state. */
     protected $expectedcompletion;
+
+    /**
+     * @var array Request-level cache of course full names, keyed by course id.
+     *            Avoids repeated {course} lookups when many activities on the
+     *            same page reference the same prerequisite course.
+     */
+    protected static $namecache = [];
+
+    /**
+     * @var array Request-level cache of completion percentages, keyed by
+     *            "courseid:userid". Avoids re-running the completion count
+     *            queries for every restricted item on a page.
+     */
+    protected static $pctcache = [];
 
     /**
      * Constructor.
@@ -79,7 +93,7 @@ class condition extends \core_availability\condition {
      */
     public function save() {
         return (object)[
-            'type'   => 'coursecompleted',
+            'type'   => 'prerequisite',
             'course' => $this->courseid,
             'e'      => $this->expectedcompletion,
         ];
@@ -94,7 +108,7 @@ class condition extends \core_availability\condition {
      */
     public static function get_json(int $courseid, int $expectedcompletion): \stdClass {
         return (object)[
-            'type'   => 'coursecompleted',
+            'type'   => 'prerequisite',
             'course' => $courseid,
             'e'      => $expectedcompletion,
         ];
@@ -130,7 +144,57 @@ class condition extends \core_availability\condition {
     }
 
     /**
+     * Calculates the student's current completion percentage in the prerequisite course.
+     *
+     * Returns a value 0–100 based on how many completable activities the
+     * student has completed, giving them meaningful progress feedback even
+     * before the course is formally marked complete.
+     *
+     * @param int $userid The user to calculate progress for.
+     * @return int|null Percentage 0-100, or null if progress cannot be calculated.
+     */
+    protected function get_completion_percentage(int $userid): ?int {
+        global $DB;
+
+        // Return cached value if we already calculated it this request.
+        $cachekey = $this->courseid . ':' . $userid;
+        if (array_key_exists($cachekey, self::$pctcache)) {
+            return self::$pctcache[$cachekey];
+        }
+
+        // Count total completable activities in the prerequisite course.
+        $total = $DB->count_records_select(
+            'course_modules',
+            'course = :course AND completion > 0 AND deletioninprogress = 0',
+            ['course' => $this->courseid]
+        );
+
+        if ($total === 0) {
+            self::$pctcache[$cachekey] = null;
+            return null;
+        }
+
+        // Count activities the user has completed.
+        $done = $DB->count_records_sql(
+            'SELECT COUNT(cmc.id)
+               FROM {course_modules_completion} cmc
+               JOIN {course_modules} cm ON cm.id = cmc.coursemoduleid
+              WHERE cm.course = :course
+                AND cmc.userid = :userid
+                AND cmc.completionstate > 0',
+            ['course' => $this->courseid, 'userid' => $userid]
+        );
+
+        $pct = (int)round(($done / $total) * 100);
+        self::$pctcache[$cachekey] = $pct;
+        return $pct;
+    }
+
+    /**
      * Returns a human-readable description of this condition.
+     *
+     * When shown to a student, includes their current completion percentage
+     * so they can see how far they are from meeting the prerequisite.
      *
      * @param bool                    $full True for a full description.
      * @param bool                    $not  True if the condition is negated.
@@ -138,19 +202,42 @@ class condition extends \core_availability\condition {
      * @return string
      */
     public function get_description($full, $not, \core_availability\info $info): string {
-        global $DB;
+        global $USER;
 
-        $coursename = $DB->get_field('course', 'fullname', ['id' => $this->courseid]);
+        // Look up the course name (request-cached to avoid repeat queries
+        // when many activities on a page share the same prerequisite).
+        if (array_key_exists($this->courseid, self::$namecache)) {
+            $coursename = self::$namecache[$this->courseid];
+        } else {
+            global $DB;
+            $coursename = $DB->get_field('course', 'fullname', ['id' => $this->courseid]);
+            self::$namecache[$this->courseid] = $coursename;
+        }
+
         if ($coursename === false) {
             $displayname = get_string('missing', 'availability_prerequisite');
         } else {
             $name = format_string($coursename);
             $url  = new \moodle_url('/course/view.php', ['id' => $this->courseid]);
-            $displayname = \html_writer::link(
+            $link = \html_writer::link(
                 $url,
                 $name,
                 ['target' => '_blank', 'rel' => 'noopener noreferrer']
             );
+
+            // Show completion progress percentage to the student.
+            $displayname = $link;
+            if (!$not && $this->expectedcompletion === self::COMPLETION_COMPLETE) {
+                $pct = $this->get_completion_percentage((int)$USER->id);
+                if ($pct !== null && $pct < 100) {
+                    $progressstr = get_string('progress_percent', 'availability_prerequisite',
+                        $pct);
+                    $displayname .= ' ' . \html_writer::span(
+                        $progressstr,
+                        'availability-prerequisite-progress'
+                    );
+                }
+            }
         }
 
         if ($not) {
