@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Plugin version and dependency information.
+ * Web service (external function) definitions for availability_prerequisite.
  *
  * @package   availability_prerequisite
  * @copyright 2026 Vinit Mepani <vinitmepani07@email.com>
@@ -24,9 +24,12 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version      = 2026061800;
-$plugin->requires     = 2022041900;
-$plugin->maturity     = MATURITY_STABLE;
-$plugin->release      = '1.3.0';
-$plugin->component    = 'availability_prerequisite';
-$plugin->dependencies = [];
+$functions = [
+    'availability_prerequisite_search_courses' => [
+        'classname'   => 'availability_prerequisite\external\search_courses',
+        'methodname'  => 'execute',
+        'description' => 'Search courses that may be used as a prerequisite in an availability condition.',
+        'type'        => 'read',
+        'ajax'        => true,
+    ],
+];
