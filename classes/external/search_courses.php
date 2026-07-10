@@ -134,9 +134,12 @@ class search_courses extends external_api {
         $results = [];
         foreach ($courses as $c) {
             $url = new \moodle_url('/course/view.php', ['id' => $c->id]);
+            // format_string() HTML-encodes for display, but we're returning JSON.
+            // Decode back to literal characters so search input matches result names.
+            $formatted = format_string($c->fullname, true, ['context' => $context]);
             $results[] = [
                 'id'   => (int)$c->id,
-                'name' => format_string($c->fullname, true, ['context' => $context]),
+                'name' => html_entity_decode($formatted, ENT_QUOTES | ENT_HTML5),
                 'url'  => $url->out(false),
             ];
         }
