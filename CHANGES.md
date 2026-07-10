@@ -1,6 +1,16 @@
 
 # Changelog
 
+## 1.3.1 - 2026-07-10
+
+### Fixed
+
+* HTML entity encoding in course prerequisite search results
+  Courses with special characters (&, <, >, ") can now be found via search.
+  Previously, API returned HTML-encoded names (&) which didn't match
+  raw user input (&).
+
+
 ## 1.3.0 - 2026-06-18
 
 ### Fixed
